@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P API Test Arayüzü</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .section h2 {
+            color: #555;
+            margin-top: 0;
+        }
+        input, textarea, button {
+            padding: 10px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        input, textarea {
+            width: 300px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            padding: 10px 20px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .response {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .messages {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background-color: #f8f9fa;
+        }
+        .message {
+            padding: 8px;
+            margin: 5px 0;
+            background-color: white;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 P2P API Test Arayüzü</h1>
+        
+        <!-- Durum Bölümü -->
+        <div class="section">
+            <h2>📊 API Durumu</h2>
+            <button onclick="getStatus()">Durumu Kontrol Et</button>
+            <div id="statusResponse" class="response"></div>
+        </div>
+
+        <!-- Bağlantı Bölümü -->
+        <div class="section">
+            <h2>🔌 Peer Bağlantısı</h2>
+            <input type="text" id="multiaddr" placeholder="Multiaddr girin (örn: /ip4/127.0.0.1/tcp/8080/p2p/...)" style="width: 500px;">
+            <button onclick="connectPeer()">Peer'a Bağlan</button>
+            <div id="connectResponse" class="response"></div>
+        </div>
+
+        <!-- Peer Listesi -->
+        <div class="section">
+            <h2>👥 Bağlı Peer'lar</h2>
+            <button onclick="getPeers()">Peer'ları Listele</button>
+            <div id="peersResponse" class="response"></div>
+        </div>
+
+        <!-- Mesaj Gönderme -->
+        <div class="section">
+            <h2>📤 Mesaj Gönder</h2>
+            <textarea id="messageContent" placeholder="Mesajınızı yazın..." rows="3" style="width: 400px;"></textarea>
+            <br>
+            <button onclick="sendMessage()">Mesaj Gönder</button>
+            <div id="sendResponse" class="response"></div>
+        </div>
+
+        <!-- Mesaj Geçmişi -->
+        <div class="section">
+            <h2>📨 Mesaj Geçmişi</h2>
+            <button onclick="getMessages()">Mesajları Getir</button>
+            <div id="messagesContainer" class="messages"></div>
+        </div>
+    </div>
+
+    <script>
+        let eventSource = null;
+
+        async function makeRequest(url, method = 'GET', body = null) {
+            try {
+                const options = {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                };
+                
+                if (body) {
+                    options.body = JSON.stringify(body);
+                }
+
+                const response = await fetch(url, options);
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                return { success: false, message: 'Hata: ' + error.message };
+            }
+        }
+
+        function displayResponse(elementId, data) {
+            const element = document.getElementById(elementId);
+            element.textContent = JSON.stringify(data, null, 2);
+        }
+
+        async function getStatus() {
+            const data = await makeRequest('/api/status');
+            displayResponse('statusResponse', data);
+        }
+
+        async function connectPeer() {
+            const multiaddr = document.getElementById('multiaddr').value;
+            if (!multiaddr) {
+                alert('Lütfen multiaddr girin!');
+                return;
+            }
+
+            const data = await makeRequest('/api/connect', 'POST', { multiaddr: multiaddr });
+            displayResponse('connectResponse', data);
+            
+            if (data.success) {
+                document.getElementById('multiaddr').value = '';
+            }
+        }
+
+        async function getPeers() {
+            const data = await makeRequest('/api/peers');
+            displayResponse('peersResponse', data);
+        }
+
+        async function sendMessage() {
+            const content = document.getElementById('messageContent').value;
+            if (!content) {
+                alert('Lütfen mesaj içeriği girin!');
+                return;
+            }
+
+            const data = await makeRequest('/api/send', 'POST', { content: content });
+            displayResponse('sendResponse', data);
+            
+            if (data.success) {
+                document.getElementById('messageContent').value = '';
+            }
+        }
+
+        async function getMessages() {
+            const data = await makeRequest('/api/messages');
+            displayResponse('messagesContainer', data);
+            
+            if (data.success && data.data) {
+                displayMessages(data.data);
+            }
+        }
+
+        function displayMessages(messages) {
+            const container = document.getElementById('messagesContainer');
+            container.innerHTML = '';
+            
+            messages.forEach(msg => {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message';
+                messageDiv.innerHTML = `
+                    <strong>ID:</strong> ${msg.id}<br>
+                    <strong>İçerik:</strong> ${msg.content}<br>
+                    <strong>Gönderen:</strong> ${msg.from}<br>
+                    <strong>Tarih:</strong> ${new Date(msg.timestamp).toLocaleString()}
+                `;
+                container.appendChild(messageDiv);
+            });
+        }
+
+
+        // Sayfa yüklendiğinde durumu kontrol et
+        window.onload = function() {
+            getStatus();
+        };
+    </script>
+</body>
+</html> 

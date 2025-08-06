@@ -1,24 +1,29 @@
-# Go-libp2p PubSub Mesajlaşma Sistemi
+# 🔗 P2P REST API - Go-libp2p
 
-Bu proje, Go-libp2p kullanarak peer-to-peer (P2P) mesajlaşma sistemi oluşturan bir örnek uygulamadır. Sistem, bir **Publisher** (yayıncı) ve bir veya daha fazla **Subscriber** (abone) arasında mesaj alışverişi sağlar.
+Bu proje, Go-libp2p kullanarak peer-to-peer (P2P) mesajlaşma sistemini REST API olarak sunan bir uygulamadır. Sistem, HTTP endpoint'leri üzerinden P2P işlemlerini yönetmenizi sağlar.
 
 ## 🚀 Özellikler
 
+- **REST API**: HTTP endpoint'leri üzerinden P2P işlemleri
+- **Web Arayüzü**: Kullanıcı dostu test arayüzü
 - **P2P İletişim**: Merkezi sunucu olmadan peer-to-peer iletişim
 - **PubSub Pattern**: Yayıncı-abone mesajlaşma modeli
 - **GossipSub Protokolü**: Güvenilir ve ölçeklenebilir mesaj dağıtımı
-- **Çoklu Bağlantı**: Publisher birden fazla subscriber'a bağlanabilir
-- **Gerçek Zamanlı**: Anlık mesaj iletimi
+- **Gerçek Zamanlı**: Server-Sent Events ile canlı mesaj dinleme
+- **Çoklu Bağlantı**: Birden fazla peer'a bağlanabilme
 
 ## 📁 Proje Yapısı
 
 ```
 go-api/
-├── publisher.go    # Mesaj yayınlayan uygulama
-├── subscriber.go   # Mesaj alan uygulama
-├── go.mod          # Go modül bağımlılıkları
-├── go.sum          # Bağımlılık hash'leri
-└── README.md       # Bu dosya
+├── main.go              # Ana API sunucusu
+├── static/
+│   └── index.html       # Web test arayüzü
+├── publisher.go         # Eski P2P publisher (referans)
+├── subscriber.go        # Eski P2P subscriber (referans)
+├── go.mod              # Go modül bağımlılıkları
+├── go.sum              # Bağımlılık hash'leri
+└── README.md           # Bu dosya
 ```
 
 ## 🛠️ Kurulum
@@ -41,130 +46,280 @@ go-api/
    go mod tidy
    ```
 
-## 🎯 Kullanım
+3. **API'yi başlatın:**
+   ```bash
+   go run main.go
+   ```
 
-### 1. Subscriber'ları Başlatın
+4. **Web arayüzüne erişin:**
+   ```
+   http://localhost:8080
+   ```
 
-İlk olarak, mesaj alacak subscriber'ları başlatın:
+## 🎯 API Endpoint'leri
+
+### 📊 Durum Kontrolü
+```http
+GET /api/status
+```
+
+**Yanıt:**
+```json
+{
+  "success": true,
+  "message": "Node durumu",
+  "data": {
+    "peer_id": "12D3KooW...",
+    "tcp_addresses": ["/ip4/127.0.0.1/tcp/8080/p2p/..."],
+    "connected_peers": 2,
+    "message_count": 5
+  }
+}
+```
+
+### 🔌 Peer Bağlantısı
+```http
+POST /api/connect
+Content-Type: application/json
+
+{
+  "multiaddr": "/ip4/127.0.0.1/tcp/8080/p2p/12D3KooW..."
+}
+```
+
+**Yanıt:**
+```json
+{
+  "success": true,
+  "message": "Peer'a başarıyla bağlanıldı: 12D3KooW...",
+  "data": {
+    "peer_id": "12D3KooW...",
+    "address": "/ip4/127.0.0.1/tcp/8080/p2p/..."
+  }
+}
+```
+
+### 👥 Bağlı Peer'lar
+```http
+GET /api/peers
+```
+
+**Yanıt:**
+```json
+{
+  "success": true,
+  "message": "Bağlı peer'lar",
+  "data": [
+    {
+      "peer_id": "12D3KooW...",
+      "addrs": ["/ip4/127.0.0.1/tcp/8080"]
+    }
+  ]
+}
+```
+
+### 📤 Mesaj Gönderme
+```http
+POST /api/send
+Content-Type: application/json
+
+{
+  "content": "Merhaba P2P dünyası!"
+}
+```
+
+**Yanıt:**
+```json
+{
+  "success": true,
+  "message": "Mesaj başarıyla yayınlandı",
+  "data": {
+    "id": "msg_1",
+    "content": "Merhaba P2P dünyası!",
+    "from": "12D3KooW...",
+    "timestamp": "2024-01-15T10:30:00Z"
+  }
+}
+```
+
+### 📨 Mesaj Geçmişi
+```http
+GET /api/messages
+```
+
+**Yanıt:**
+```json
+{
+  "success": true,
+  "message": "Alınan mesajlar",
+  "data": [
+    {
+      "id": "msg_1",
+      "content": "Merhaba!",
+      "from": "12D3KooW...",
+      "timestamp": "2024-01-15T10:30:00Z"
+    }
+  ]
+}
+```
+
+### 📡 Canlı Mesaj Dinleme
+```http
+GET /api/subscribe
+```
+
+**Server-Sent Events (SSE) ile gerçek zamanlı mesaj dinleme**
+
+## 🌐 Web Arayüzü
+
+API'yi test etmek için web arayüzü kullanabilirsiniz:
+
+1. **Tarayıcıda açın:** `http://localhost:8080`
+2. **Durumu kontrol edin:** API'nin çalışıp çalışmadığını görün
+3. **Peer bağlantısı:** Multiaddr girerek peer'a bağlanın
+4. **Mesaj gönderin:** Metin kutusuna mesaj yazıp gönderin
+5. **Canlı dinleme:** Yeni mesajları gerçek zamanlı görün
+
+## 🔧 Kullanım Örnekleri
+
+### cURL ile Test
 
 ```bash
-go run subscriber.go
+# Durum kontrolü
+curl http://localhost:8080/api/status
+
+# Peer bağlantısı
+curl -X POST http://localhost:8080/api/connect \
+  -H "Content-Type: application/json" \
+  -d '{"multiaddr": "/ip4/127.0.0.1/tcp/8080/p2p/12D3KooW..."}'
+
+# Mesaj gönderme
+curl -X POST http://localhost:8080/api/send \
+  -H "Content-Type: application/json" \
+  -d '{"content": "Test mesajı"}'
+
+# Mesajları listele
+curl http://localhost:8080/api/messages
 ```
 
-Her subscriber çalıştığında şu bilgileri göreceksiniz:
+### JavaScript ile Test
+
+```javascript
+// Durum kontrolü
+const status = await fetch('/api/status').then(r => r.json());
+
+// Peer bağlantısı
+const connect = await fetch('/api/connect', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ multiaddr: '/ip4/127.0.0.1/tcp/8080/p2p/...' })
+}).then(r => r.json());
+
+// Mesaj gönderme
+const send = await fetch('/api/send', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ content: 'Merhaba!' })
+}).then(r => r.json());
+
+// Canlı dinleme
+const eventSource = new EventSource('/api/subscribe');
+eventSource.onmessage = (event) => {
+  const message = JSON.parse(event.data);
+  console.log('Yeni mesaj:', message);
+};
 ```
-Subscriber PeerID: 12D3KooW...
-Address: /ip4/127.0.0.1/tcp/xxxxx/p2p/12D3KooW...
-Subscribed to topic 'account-lookup'
-```
 
-**Önemli**: Subscriber'ların gösterdiği multiaddr'ları not edin, bunları publisher'da kullanacaksınız.
+## 🔮 Gelişmiş Özellikler
 
-### 2. Publisher'ı Başlatın
+### Çoklu Node Test
 
-Subscriber'lar çalıştıktan sonra publisher'ı başlatın:
-
-```bash
-go run publisher.go
-```
-
-Publisher başladığında:
-```
-Publisher PeerID: 12D3KooW...
-Address: /ip4/127.0.0.1/tcp/xxxxx/p2p/12D3KooW...
-Enter first subscriber multiaddr:
-```
-
-### 3. Bağlantıları Kurun
-
-Publisher size iki subscriber multiaddr'ı soracak:
-
-1. **İlk subscriber multiaddr'ını girin** (örnek):
+1. **İlk API'yi başlatın:**
+   ```bash
+   PORT=8080 go run main.go
    ```
-   /ip4/127.0.0.1/tcp/60734/p2p/12D3KooWD5wDQYpjDKmZqAQKdbMufDXvM6JaQUm2ZH4WcsC8T1fd
+
+2. **İkinci API'yi başlatın:**
+   ```bash
+   PORT=8081 go run main.go
    ```
 
-2. **İkinci subscriber multiaddr'ını girin** (örnek):
-   ```
-   /ip4/127.0.0.1/tcp/60726/p2p/12D3KooWBRRAD6Pkq6xNm6sm5rpsherPAfEARa3GtnCoZyruhBLg
-   ```
+3. **Peer'ları bağlayın:**
+   - İlk API'nin durumunu kontrol edin
+   - İkinci API'den ilk API'ye bağlanın
+   - Mesaj gönderin ve test edin
 
-### 4. Mesaj Gönderin
+### Environment Variables
 
-Bağlantılar kurulduktan sonra, publisher size mesaj göndermenizi isteyecek:
-
-```
-Start sending messages. Type 'exit' to quit.
-Enter account number to broadcast: 
-```
-
-Burada gönderdiğiniz her mesaj, bağlı tüm subscriber'lara iletilecektir.
-
-## 🔧 Teknik Detaylar
-
-### Kullanılan Teknolojiler
-
-- **libp2p**: P2P ağ protokolü
-- **GossipSub**: PubSub protokolü
-- **Multiaddr**: Ağ adresi formatı
-- **Peer ID**: Benzersiz peer tanımlayıcısı
-
-### Mesajlaşma Akışı
-
-1. **Bağlantı Kurma**: Publisher, subscriber'ların multiaddr'larını kullanarak bağlantı kurar
-2. **Topic Aboneliği**: Tüm peer'lar "account-lookup" topic'ine abone olur
-3. **Mesaj Yayını**: Publisher mesaj gönderdiğinde, GossipSub protokolü mesajı tüm abonelere dağıtır
-4. **Mesaj Alma**: Subscriber'lar gelen mesajları alır ve ekrana yazdırır
-
-### Protokol Detayları
-
-- **Topic**: "account-lookup" (sabit topic adı)
-- **Mesaj Formatı**: Plain text (byte array)
-- **Bağlantı Tipi**: TCP üzerinden P2P
-- **Keşif**: Manuel multiaddr girişi
+- `PORT`: API port'u (varsayılan: 8080)
 
 ## 🐛 Sorun Giderme
 
 ### Yaygın Hatalar
 
-1. **"Invalid address" Hatası**
+1. **"Port already in use"**
+   ```bash
+   # Farklı port kullanın
+   PORT=8081 go run main.go
+   ```
+
+2. **"Failed to connect"**
+   - Peer'ın çalıştığından emin olun
+   - Multiaddr'ın doğru olduğunu kontrol edin
+   - Firewall ayarlarını kontrol edin
+
+3. **"Invalid multiaddr"**
    - Multiaddr formatını kontrol edin
    - Boşluk veya özel karakter olmadığından emin olun
 
-2. **"Failed to connect" Hatası**
-   - Subscriber'ın çalıştığından emin olun
-   - Firewall ayarlarını kontrol edin
-   - Multiaddr'ın doğru olduğunu kontrol edin
-
-3. **Mesaj Alınmıyor**
-   - Topic adının aynı olduğunu kontrol edin
-   - Bağlantının başarılı olduğunu kontrol edin
-
 ### Debug İpuçları
 
-- Her peer'ın benzersiz bir PeerID'si vardır
+- Her node'un benzersiz bir PeerID'si vardır
 - Multiaddr formatı: `/ip4/IP/tcp/PORT/p2p/PEER_ID`
-- Subscriber'lar önce başlatılmalı, sonra publisher
+- Web arayüzünde tüm işlemleri test edebilirsiniz
 
-## 📝 Örnek Kullanım Senaryosu
+## 📝 Teknik Detaylar
 
-### Senaryo: Hesap Arama Sistemi
+### Kullanılan Teknolojiler
 
-Bu sistem, finansal kurumlar arasında hesap bilgisi paylaşımı için kullanılabilir:
+- **Go**: Ana programlama dili
+- **libp2p**: P2P ağ protokolü
+- **GossipSub**: PubSub protokolü
+- **HTTP**: REST API
+- **Server-Sent Events**: Gerçek zamanlı iletişim
+- **HTML/JavaScript**: Web arayüzü
 
-1. **Subscriber'lar**: Farklı bankalar (Bank A, Bank B)
-2. **Publisher**: Merkezi hesap sorgulama sistemi
-3. **Mesajlar**: Hesap numaraları
-4. **Sonuç**: Tüm bankalar aynı anda hesap sorgularını alır
+### Mimari
+
+```
+┌─────────────────┐    HTTP    ┌─────────────────┐
+│   Web Client    │ ────────── │   REST API      │
+└─────────────────┘            └─────────────────┘
+                                         │
+                                         ▼
+                                ┌─────────────────┐
+                                │   P2P Node      │
+                                │  (libp2p)       │
+                                └─────────────────┘
+                                         │
+                                         ▼
+                                ┌─────────────────┐
+                                │   GossipSub     │
+                                │   (PubSub)      │
+                                └─────────────────┘
+```
 
 ## 🔮 Gelecek Geliştirmeler
 
-- [ ] Otomatik peer keşfi
+- [ ] WebSocket desteği
 - [ ] Şifreli mesajlaşma
 - [ ] Mesaj doğrulama
-- [ ] Web arayüzü
 - [ ] Çoklu topic desteği
-- [ ] Mesaj geçmişi
+- [ ] Mesaj geçmişi veritabanı
+- [ ] Docker desteği
+- [ ] Kubernetes deployment
+- [ ] Prometheus metrics
+- [ ] JWT authentication
 
 ## 📄 Lisans
 

@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  # Geliştirme ortamı için P2P API
+  p2p-api-dev:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: p2p-api-dev
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - GO_ENV=development
+    volumes:
+      # Kaynak kodları için volume (hot reload için)
+      - .:/app
+      - /app/vendor
+    networks:
+      - p2p-dev-network
+    restart: unless-stopped
+    command: ["go", "run", "main.go"]
+
+networks:
+  p2p-dev-network:
+    driver: bridge 

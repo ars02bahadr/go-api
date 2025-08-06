@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # İlk P2P API node'u
+  p2p-api-1:
+    build: .
+    container_name: p2p-api-1
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+    networks:
+      - p2p-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # İkinci P2P API node'u
+  p2p-api-2:
+    build: .
+    container_name: p2p-api-2
+    ports:
+      - "8081:8080"
+    environment:
+      - PORT=8080
+    networks:
+      - p2p-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Üçüncü P2P API node'u (opsiyonel)
+  p2p-api-3:
+    build: .
+    container_name: p2p-api-3
+    ports:
+      - "8082:8080"
+    environment:
+      - PORT=8080
+    networks:
+      - p2p-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  p2p-network:
+    driver: bridge 
